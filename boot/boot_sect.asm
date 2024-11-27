@@ -116,7 +116,7 @@ init_pm:
 
 ; Data
 boot_drive: db 0
-boot_msg: db 'Loading ScooterOS...', 13, 10, 0
+boot_msg: db 'Loading ScooterOS!', 13, 10, 0
 disk_error_msg: db 'Disk read error!', 13, 10, 0
 
 ; Padding and magic number

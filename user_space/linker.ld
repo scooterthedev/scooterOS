@@ -4,8 +4,16 @@ SECTIONS
 {
     . = 2M; /* User-space starts at 2MB */
 
-    .text BLOCK(4K) : ALIGN(4K) {
-        *(.text)
+    .user_text BLOCK(4K) : ALIGN(4K) {
+        _binary_user_bin_start = .;
+        *(.user_text)
+        _binary_user_bin_end = .;
+    }
+
+    .user_task_text BLOCK(4K) : ALIGN(4K) {
+        _binary_user_task_bin_start = .;
+        *(.user_task_text)
+        _binary_user_task_bin_end = .;
     }
 
     .rodata BLOCK(4K) : ALIGN(4K) {

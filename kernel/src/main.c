@@ -2,11 +2,17 @@
 #include <vga.h>
 #include <memory.h>
 #include <io.h>
+#include "keyboard.h"
+#include "timer.h"
+#include "fat32.h"
+#include "window_manager.h"
+#include "explorer.h"
+#include "binary.h"
 
-extern uint8_t _binary_user_bin_start;
-extern uint8_t _binary_user_bin_end;
-extern uint8_t _binary_user_task_bin_start;
-extern uint8_t _binary_user_task_bin_end;
+extern char _binary_user_bin_start;
+extern char _binary_user_bin_end;
+extern char _binary_user_task_bin_start;
+extern char _binary_user_task_bin_end;
 
 #define USER_SPACE_START 0x200000 // 2MB
 #define USER_SPACE_SIZE  (0x100000) // 1MB per user task
@@ -24,28 +30,14 @@ int current_task = 0;
 
 extern void switch_to_user(void (*user_func)());
 
+extern void load_binary(char *start, size_t size);
+
 void load_user_space() {
-    // Load user_main
-    uint64_t user_main_size = &_binary_user_bin_end - &_binary_user_bin_start;
-    uint8_t* user_main_addr = (uint8_t*)USER_SPACE_START;
+    size_t user_bin_size = &_binary_user_bin_end - &_binary_user_bin_start;
+    size_t user_task_bin_size = &_binary_user_task_bin_end - &_binary_user_task_bin_start;
 
-    for(uint64_t i = 0; i < user_main_size; i++) {
-        user_main_addr[i] = _binary_user_bin_start + i;
-    }
-
-    tasks[0].entry = (user_task_t)user_main_addr;
-    tasks[0].stack = USER_SPACE_START + user_main_size + 0x1000; // Allocate 4KB for stack
-
-    // Load user_task
-    uint64_t user_task_size = &_binary_user_task_bin_end - &_binary_user_task_bin_start;
-    uint8_t* user_task_addr = (uint8_t*)(USER_SPACE_START + USER_SPACE_SIZE);
-
-    for(uint64_t i = 0; i < user_task_size; i++) {
-        user_task_addr[i] = _binary_user_task_bin_start + i;
-    }
-
-    tasks[1].entry = (user_task_t)user_task_addr;
-    tasks[1].stack = USER_SPACE_START + USER_SPACE_SIZE + user_task_size + 0x1000; // Allocate 4KB for stack
+    load_binary(&_binary_user_bin_start, user_bin_size);
+    load_binary(&_binary_user_task_bin_start, user_task_bin_size);
 }
 
 void scheduler() {
