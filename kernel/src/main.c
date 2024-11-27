@@ -9,10 +9,8 @@
 #include "explorer.h"
 #include "binary.h"
 
-extern char _binary_user_bin_start;
-extern char _binary_user_bin_end;
-extern char _binary_user_task_bin_start;
-extern char _binary_user_task_bin_end;
+extern char _binary_user_bin_start[];
+extern char _binary_user_bin_end[];
 
 #define USER_SPACE_START 0x200000 // 2MB
 #define USER_SPACE_SIZE  (0x100000) // 1MB per user task
@@ -33,15 +31,12 @@ extern void switch_to_user(void (*user_func)());
 extern void load_binary(char *start, size_t size);
 
 void load_user_space() {
-    size_t user_bin_size = &_binary_user_bin_end - &_binary_user_bin_start;
-    size_t user_task_bin_size = &_binary_user_task_bin_end - &_binary_user_task_bin_start;
-
-    load_binary(&_binary_user_bin_start, user_bin_size);
-    load_binary(&_binary_user_task_bin_start, user_task_bin_size);
+    size_t user_bin_size = _binary_user_bin_end - _binary_user_bin_start;
+    load_binary(_binary_user_bin_start, user_bin_size);
 }
 
 void scheduler() {
-    while(1) {
+    while (1) {
         switch_to_user(tasks[current_task].entry);
         current_task = (current_task + 1) % MAX_TASKS;
     }

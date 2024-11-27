@@ -1,6 +1,8 @@
 section .text
 global switch_to_user
 
+section .note.GNU-stack
+
 switch_to_user:
     ; Save current kernel context
     push rax
