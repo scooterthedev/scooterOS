@@ -107,7 +107,48 @@ void terminal_writestring(const char* data) {
         terminal_putchar(data[i]);
 }
 
+void sleep(int ticks) {
+    for (volatile int i = 0; i < ticks * 10000; i++) {}
+}
+
+void clear_line(size_t line) {
+    for (size_t x = 0; x < VGA_WIDTH; x++) {
+        terminal_putentryat(' ', terminal_color, x, line);
+    }
+}
+
+void draw_loading_bar(size_t progress, size_t line) {
+    const size_t bar_width = 40;
+    const size_t start_x = (VGA_WIDTH - bar_width) / 2;
+    
+    terminal_putentryat('[', terminal_color, start_x - 1, line);
+    terminal_putentryat(']', terminal_color, start_x + bar_width, line);
+    
+    size_t filled = (progress * bar_width) / 100;
+    for (size_t x = 0; x < bar_width; x++) {
+        char c = x < filled ? '=' : ' ';
+        terminal_putentryat(c, terminal_color, start_x + x, line);
+    }
+    
+    char percentage[5];
+    terminal_putentryat(progress < 100 ? ' ' : '1', terminal_color, start_x + bar_width + 2, line);
+    terminal_putentryat(progress < 10 ? ' ' : ((progress / 10) % 10) + '0', terminal_color, start_x + bar_width + 3, line);
+    terminal_putentryat((progress % 10) + '0', terminal_color, start_x + bar_width + 4, line);
+    terminal_putentryat('%', terminal_color, start_x + bar_width + 5, line);
+}
+
 void kernel_main(void) {
+    terminal_initialize();
+    
+    terminal_setcolor(vga_entry_color(VGA_COLOR_CYAN, VGA_COLOR_BLACK));
+    
+    terminal_writestring("\n\n\n    Initializing ScooterOS...\n\n");
+    
+    for (size_t i = 0; i <= 100; i += 5) {
+        draw_loading_bar(i, 5);
+        sleep(4000);
+    }
+    
     terminal_initialize();
     
     terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
