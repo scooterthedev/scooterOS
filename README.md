@@ -1,4 +1,4 @@
 To build - 
 
-make clean
+make clean, 
 make run
