@@ -1,26 +1,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-// VGA colors
-enum vga_color {
-    VGA_COLOR_BLACK = 0,
-    VGA_COLOR_BLUE = 1,
-    VGA_COLOR_GREEN = 2,
-    VGA_COLOR_CYAN = 3,
-    VGA_COLOR_RED = 4,
-    VGA_COLOR_MAGENTA = 5,
-    VGA_COLOR_BROWN = 6,
-    VGA_COLOR_LIGHT_GREY = 7,
-    VGA_COLOR_DARK_GREY = 8,
-    VGA_COLOR_LIGHT_BLUE = 9,
-    VGA_COLOR_LIGHT_GREEN = 10,
-    VGA_COLOR_LIGHT_CYAN = 11,
-    VGA_COLOR_LIGHT_RED = 12,
-    VGA_COLOR_LIGHT_MAGENTA = 13,
-    VGA_COLOR_LIGHT_BROWN = 14,
-    VGA_COLOR_WHITE = 15,
-};
+#include "string.h"
+#include "io.h"
+#include "vga.h"
+#include "keyboard.h"
+#include "ui.h"
+#include "userspace/userspace.h"
+#include "gdt.h"
 
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 25;
@@ -30,13 +17,35 @@ size_t terminal_column;
 uint8_t terminal_color;
 uint16_t* terminal_buffer;
 
-static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
-    return fg | bg << 4;
-}
+#define COMMAND_BUFFER_SIZE 256
+char command_buffer[COMMAND_BUFFER_SIZE];
+size_t command_index = 0;
 
-static inline uint16_t vga_entry(unsigned char uc, uint8_t color) {
-    return (uint16_t) uc | (uint16_t) color << 8;
-}
+uint32_t last_status_update = 0;
+
+volatile uint32_t tick = 0;
+
+bool prompt_needed = true;
+
+typedef struct {
+    const char* name;
+    size_t weight;
+} component_t;
+
+static const component_t components[] = {
+    {"Memory Manager", 15},
+    {"Process Scheduler", 20},
+    {"File System", 25},
+    {"Device Drivers", 20},
+    {"User Interface", 15},
+    {"Shell", 5}
+};
+
+static const size_t num_components = sizeof(components) / sizeof(component_t);
+
+#define MODE_SHELL 0
+#define MODE_FILE_EXPLORER 1
+uint8_t current_mode = MODE_SHELL;
 
 void terminal_scroll() {
     for (size_t y = 0; y < VGA_HEIGHT - 1; y++) {
@@ -130,33 +139,191 @@ void draw_loading_bar(size_t progress, size_t line) {
         terminal_putentryat(c, terminal_color, start_x + x, line);
     }
     
-    char percentage[5];
     terminal_putentryat(progress < 100 ? ' ' : '1', terminal_color, start_x + bar_width + 2, line);
     terminal_putentryat(progress < 10 ? ' ' : ((progress / 10) % 10) + '0', terminal_color, start_x + bar_width + 3, line);
     terminal_putentryat((progress % 10) + '0', terminal_color, start_x + bar_width + 4, line);
     terminal_putentryat('%', terminal_color, start_x + bar_width + 5, line);
 }
 
+void shell_prompt(void) {
+    terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
+    terminal_writestring("\nScooterOS> ");
+    terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
+}
+
+void process_command(char* command) {
+    if(strcmp(command, "help") == 0) {
+        terminal_writestring("\nAvailable commands:\n");
+        terminal_writestring("  help - Show this help message\n");
+        terminal_writestring("  clear - Clear the screen\n");
+        terminal_writestring("  about - Show system information\n");
+        terminal_writestring("  boot - Boot into ScooterOS\n");
+    } else if(strcmp(command, "clear") == 0) {
+        terminal_initialize();
+    } else if(strcmp(command, "about") == 0) {
+        terminal_writestring("\nScooterOS v0.0.0.0.1\n");
+        terminal_writestring("A simple operating system for now\n");
+    } else if(strcmp(command, "boot") == 0) {
+        terminal_initialize();
+        terminal_setcolor(vga_entry_color(VGA_COLOR_CYAN, VGA_COLOR_BLACK));
+        
+        terminal_writestring("\n\n\n    Initializing ScooterOS...\n\n");
+        
+        size_t total_progress = 0;
+        for (size_t i = 0; i < num_components; i++) {
+            terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
+            terminal_writestring("\n    Loading ");
+            terminal_writestring(components[i].name);
+            terminal_writestring("...");
+            
+            size_t start_progress = total_progress;
+            size_t end_progress = total_progress + components[i].weight;
+            
+            for (size_t p = start_progress; p <= end_progress; p++) {
+                draw_loading_bar(p, 5);
+                sleep(2000);
+            }
+            
+            total_progress = end_progress;
+        }
+        
+        terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
+        terminal_writestring("\n\n    All components loaded successfully!\n");
+        sleep(10000);
+        
+        terminal_initialize();
+        
+        init_userspace();
+        
+        terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
+        terminal_writestring("Welcome to ScooterOS!\n");
+        
+        terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
+        terminal_writestring("Version 0.0.0.0.1\n");
+        
+        terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
+        terminal_writestring("Be Bop Be Bop Be Bop\n");
+        
+        terminal_writestring("\nSwitching to user mode...\n");
+        switch_to_user_mode();
+    } else {
+        terminal_writestring("\nUnknown command. Type 'help' for available commands.\n");
+    }
+}
+
+void update_status_bar() {
+    size_t original_row = terminal_row;
+    size_t original_column = terminal_column;
+    uint8_t original_color = terminal_color;
+
+    terminal_row = VGA_HEIGHT - 1;
+    terminal_column = 0;
+    terminal_setcolor(vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_LIGHT_GREY));
+
+    // Clear the status bar line
+    for (size_t x = 0; x < VGA_WIDTH; x++) {
+        terminal_putentryat(' ', terminal_color, x, VGA_HEIGHT - 1);
+    }
+
+    terminal_row = VGA_HEIGHT - 1;
+    terminal_column = 0;
+    terminal_writestring(" ScooterOS | Mode: ");
+    terminal_writestring(current_mode == MODE_SHELL ? "Shell" : "File Explorer");
+    terminal_writestring(" | Tab to switch | Memory: OK");
+
+    terminal_row = original_row;
+    terminal_column = original_column;
+    terminal_color = original_color;
+}
+
+#define PIT_FREQUENCY 1193180
+#define TIMER_COMMAND_PORT 0x43
+#define TIMER_DATA_PORT 0x40
+
+void timer_init(uint32_t frequency) {
+    uint32_t divisor = PIT_FREQUENCY / frequency;
+    outb(TIMER_COMMAND_PORT, 0x36);
+    outb(TIMER_DATA_PORT, divisor & 0xFF);
+    outb(TIMER_DATA_PORT, (divisor >> 8) & 0xFF);
+}
+
+void timer_handler() {
+    tick++;
+}
+
+#define BLOCK_SIZE 4096
+#define BLOCKS_COUNT 1024
+
+typedef struct {
+    uint32_t size;
+    uint8_t used;
+} memory_block_t;
+
+memory_block_t memory_blocks[BLOCKS_COUNT];
+
+void memory_init() {
+    for(int i = 0; i < BLOCKS_COUNT; i++) {
+        memory_blocks[i].size = BLOCK_SIZE;
+        memory_blocks[i].used = 0;
+    }
+}
+
+void* kmalloc(size_t size) {
+    // Find first available block
+    for(int i = 0; i < BLOCKS_COUNT; i++) {
+        if(!memory_blocks[i].used && memory_blocks[i].size >= size) {
+            memory_blocks[i].used = 1;
+            return (void*)(BLOCK_SIZE * i);
+        }
+    }
+    return NULL;
+}
+
+void terminal_backspace() {
+    if (terminal_column > 0) {
+        terminal_column--;
+        terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+    } else if (terminal_row > 0) {
+        terminal_row--;
+        terminal_column = VGA_WIDTH - 1;
+        terminal_putentryat(' ', terminal_color, terminal_column, terminal_row);
+    }
+}
+
 void kernel_main(void) {
     terminal_initialize();
-    
-    terminal_setcolor(vga_entry_color(VGA_COLOR_CYAN, VGA_COLOR_BLACK));
-    
-    terminal_writestring("\n\n\n    Initializing ScooterOS...\n\n");
-    
-    for (size_t i = 0; i <= 100; i += 5) {
-        draw_loading_bar(i, 5);
-        sleep(4000);
-    }
-    
-    terminal_initialize();
+    gdt_init();
+    memory_init();
+    timer_init(50);
+    keyboard_init();
+    ui_init();
     
     terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK));
-    terminal_writestring("Welcome to ScooterOS!\n");
+    terminal_writestring("Welcome to ScooterOS Boot Prompt!\n");
+    terminal_writestring("Type 'boot' to start the system or 'help' for available commands.\n\n");
     
-    terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK));
-    terminal_writestring("Version 0.0.0.0.1\n");
-    
-    terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
-    terminal_writestring("Be Bop Be Bop Be Bop\n");
+    while(1) {
+        if(prompt_needed) {
+            shell_prompt();
+            prompt_needed = false;
+        }
+
+        char c = keyboard_read_char();
+        if(c) {
+            if(c == '\n') {
+                command_buffer[command_index] = '\0';
+                process_command(command_buffer);
+                command_index = 0;
+                prompt_needed = true;
+            } else if(c == '\b') {
+                if(command_index > 0) {
+                    command_index--;
+                    terminal_backspace();
+                }
+            } else if(command_index < COMMAND_BUFFER_SIZE - 1) {
+                command_buffer[command_index++] = c;
+                terminal_putchar(c);
+            }
+        }
+    }
 } 

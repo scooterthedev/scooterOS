@@ -1,16 +1,22 @@
 CC=i686-elf-gcc
 AS=i686-elf-as
+CFLAGS=-std=gnu99 -ffreestanding -O2 -Wall -Wextra -I.
+
+OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o gdt.o
 
 all: scooterOS.iso
 
 boot.o: boot.s
 	$(AS) boot.s -o boot.o
 
-kernel.o: kernel.c
-	$(CC) -c kernel.c -o kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra
+%.o: %.c
+	$(CC) -c $< -o $@ $(CFLAGS)
 
-scooterOS.bin: boot.o kernel.o linker.ld
-	$(CC) -T linker.ld -o scooterOS.bin -ffreestanding -O2 -nostdlib boot.o kernel.o -lgcc
+userspace/%.o: userspace/%.c
+	$(CC) -c $< -o $@ $(CFLAGS)
+
+scooterOS.bin: $(OBJECTS) linker.ld
+	$(CC) -T linker.ld -o scooterOS.bin -ffreestanding -O2 -nostdlib $(OBJECTS) -lgcc
 
 scooterOS.iso: scooterOS.bin
 	mkdir -p isodir/boot/grub
@@ -19,7 +25,7 @@ scooterOS.iso: scooterOS.bin
 	grub-mkrescue -o scooterOS.iso isodir
 
 clean:
-	rm -f *.o scooterOS.bin scooterOS.iso
+	rm -f $(OBJECTS) scooterOS.bin scooterOS.iso
 	rm -rf isodir
 
 run: scooterOS.iso
