@@ -6,15 +6,18 @@
 #include <stdint.h>
 #include "string.h"
 #include "vga.h"
+#include "include/fs_common.h"
 
 #define UI_MAX_WINDOWS 16
 #define UI_MAX_TITLE 32
 #define UI_MAX_FILES 64
 
 typedef struct {
-    char name[256];
+    char name[SCOOTERFS_MAX_FILENAME];
     bool is_directory;
     size_t size;
+    uint64_t created_time;
+    uint64_t modified_time;
 } file_entry_t;
 
 typedef struct {
@@ -27,6 +30,7 @@ typedef struct {
     size_t num_files;
     size_t selected_index;
     size_t scroll_offset;
+    void (*on_click)(int x, int y);  // Click handler
 } window_t;
 
 void ui_init(void);

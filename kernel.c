@@ -251,34 +251,6 @@ void timer_handler() {
     tick++;
 }
 
-#define BLOCK_SIZE 4096
-#define BLOCKS_COUNT 1024
-
-typedef struct {
-    uint32_t size;
-    uint8_t used;
-} memory_block_t;
-
-memory_block_t memory_blocks[BLOCKS_COUNT];
-
-void memory_init() {
-    for(int i = 0; i < BLOCKS_COUNT; i++) {
-        memory_blocks[i].size = BLOCK_SIZE;
-        memory_blocks[i].used = 0;
-    }
-}
-
-void* kmalloc(size_t size) {
-    // Find first available block
-    for(int i = 0; i < BLOCKS_COUNT; i++) {
-        if(!memory_blocks[i].used && memory_blocks[i].size >= size) {
-            memory_blocks[i].used = 1;
-            return (void*)(BLOCK_SIZE * i);
-        }
-    }
-    return NULL;
-}
-
 void terminal_backspace() {
     if (terminal_column > 0) {
         terminal_column--;
@@ -293,8 +265,6 @@ void terminal_backspace() {
 void kernel_main(void) {
     terminal_initialize();
     gdt_init();
-    memory_init();
-    timer_init(50);
     keyboard_init();
     ui_init();
     
