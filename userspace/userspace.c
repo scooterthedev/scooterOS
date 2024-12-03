@@ -3,6 +3,7 @@
 #include "../keyboard.h"
 #include "../string.h"
 #include "../ui.h"
+#include "../fs/scooterfs.h"
 
 #define USER_COMMAND_BUFFER_SIZE 256
 static char user_command_buffer[USER_COMMAND_BUFFER_SIZE];
@@ -17,16 +18,47 @@ void user_process_command(char* command) {
         terminal_writestring("  clear - Clear the screen\n");
         terminal_writestring("  about - Show system information\n");
         terminal_writestring("  files - Opens file manager\n");
-    } else if (strcmp(command, "clear") == 0) {
-        terminal_initialize();
-    } else if (strcmp(command, "about") == 0) {
-        terminal_writestring("\nScooterOS v0.0.0.0.1\n");
-        terminal_writestring("A simple operating system for now!\n");
+        terminal_writestring("  make_file <filename> - Create a new file\n");
+        terminal_writestring("  dir_make <dirname> - Create a new directory\n");
+        terminal_writestring("  delete <filename> - Delete a file or directory\n");
+    } else if (strncmp(command, "make_file ", 10) == 0) {
+        if (scooterfs_create_file(command + 10, false)) {
+            terminal_writestring("\nFile created successfully\n");
+        } else {
+            terminal_writestring("\nFailed to create file\n");
+        }
+    } else if (strncmp(command, "dir_make ", 9) == 0) {
+        if (scooterfs_create_file(command + 9, true)) {
+            terminal_writestring("\nDirectory created successfully\n");
+        } else {
+            terminal_writestring("\nFailed to create directory\n");
+        }
+    } else if (strncmp(command, "delete ", 7) == 0) {
+        if (scooterfs_delete_file(command + 7)) {
+            terminal_writestring("\nFile deleted successfully\n");
+        } else {
+            terminal_writestring("\nFailed to delete file\n");
+        }
     } else if (strcmp(command, "files") == 0) {
         terminal_initialize();
         window_t* explorer = ui_get_active_window();
         if (explorer) {
             explorer->visible = true;
+            
+            scooterfs_dirent entries[UI_MAX_FILES];
+            size_t count = 0;
+            if (scooterfs_list_directory(entries, &count)) {
+                explorer->num_files = 0;
+                for (size_t i = 0; i < count && i < UI_MAX_FILES; i++) {
+                    strcpy(explorer->files[i].name, entries[i].name);
+                    explorer->files[i].is_directory = (entries[i].type == 2);
+                    explorer->files[i].size = entries[i].size;
+                    explorer->files[i].created_time = entries[i].created_time;
+                    explorer->files[i].modified_time = entries[i].modified_time;
+                    explorer->num_files++;
+                }
+            }
+            
             ui_refresh();
             
             while (1) {
@@ -40,6 +72,11 @@ void user_process_command(char* command) {
                 ui_refresh();
             }
         }
+    } else if (strcmp(command, "clear") == 0) {
+        terminal_initialize();
+    } else if (strcmp(command, "about") == 0) {
+        terminal_writestring("\nScooterOS v0.0.0.0.1\n");
+        terminal_writestring("A simple operating system with ScooterFS!\n");
     } else {
         terminal_writestring("\nUnknown command. Type 'help' for available commands.\n");
     }
