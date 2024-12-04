@@ -2,7 +2,7 @@ CC=i686-elf-gcc
 AS=i686-elf-as
 CFLAGS=-std=gnu99 -ffreestanding -O2 -Wall -Wextra -I. -Iinclude
 
-OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o gdt.o fs/scooterfs.o memory.o
+OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o
 
 all: scooterOS.iso
 
@@ -30,3 +30,6 @@ clean:
 
 run: scooterOS.iso
 	qemu-system-i386 -cdrom scooterOS.iso
+
+context_switch.o: context_switch.s
+	$(AS) context_switch.s -o context_switch.o
