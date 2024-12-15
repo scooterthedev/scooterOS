@@ -4,6 +4,9 @@
 #include "../string.h"
 #include "../ui.h"
 #include "../fs/scooterfs.h"
+#include "editor.h"
+
+extern editor_t editor;
 
 #define USER_COMMAND_BUFFER_SIZE 256
 static char user_command_buffer[USER_COMMAND_BUFFER_SIZE];
@@ -21,6 +24,7 @@ void user_process_command(char* command) {
         terminal_writestring("  make_file <filename> - Create a new file\n");
         terminal_writestring("  dir_make <dirname> - Create a new directory\n");
         terminal_writestring("  delete <filename> - Delete a file or directory\n");
+        terminal_writestring("  edit <filename> - Open text editor\n");
     } else if (strncmp(command, "make_file ", 10) == 0) {
         if (scooterfs_create_file(command + 10, false)) {
             terminal_writestring("\nFile created successfully\n");
@@ -77,6 +81,48 @@ void user_process_command(char* command) {
     } else if (strcmp(command, "about") == 0) {
         terminal_writestring("\nScooterOS v0.0.0.0.1\n");
         terminal_writestring("A simple operating system with ScooterFS!\n");
+    } else if (strncmp(command, "edit ", 5) == 0) {
+        editor_open(command + 5);
+        editor_draw();
+        
+        while (editor_active) {
+            char c = keyboard_read_char();
+            if (c == 27) {
+                if (editor.modified) {
+                    terminal_writestring("\nFile has unsaved changes. Press 'y' to exit anyway: ");
+                    char confirm = keyboard_read_char();
+                    if (confirm != 'y' && confirm != 'Y') {
+                        editor_draw();
+                        continue;
+                    }
+                }
+                editor_active = false;
+                terminal_initialize();
+                break;
+            }
+            editor_handle_input(c);
+        }
+    } else if (strcmp(command, "edit") == 0) {
+        editor_open("untitled");
+        editor_draw();
+        
+        while (editor_active) {
+            char c = keyboard_read_char();
+            if (c == 27) {
+                if (editor.modified) {
+                    terminal_writestring("\nFile has unsaved changes. Press 'y' to exit anyway: ");
+                    char confirm = keyboard_read_char();
+                    if (confirm != 'y' && confirm != 'Y') {
+                        editor_draw();
+                        continue;
+                    }
+                }
+                editor_active = false;
+                terminal_initialize();
+                break;
+            }
+            editor_handle_input(c);
+        }
     } else {
         terminal_writestring("\nUnknown command. Type 'help' for available commands.\n");
     }

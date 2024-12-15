@@ -2,7 +2,7 @@ CC=i686-elf-gcc
 AS=i686-elf-as
 CFLAGS=-std=gnu99 -ffreestanding -O2 -Wall -Wextra -I. -Iinclude
 
-OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o
+OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o
 
 all: scooterOS.iso
 
@@ -15,8 +15,11 @@ boot.o: boot.s
 userspace/%.o: userspace/%.c
 	$(CC) -c $< -o $@ $(CFLAGS)
 
-scooterOS.bin: $(OBJECTS) linker.ld
-	$(CC) -T linker.ld -o scooterOS.bin -ffreestanding -O2 -nostdlib $(OBJECTS) -lgcc
+userspace/editor.o: userspace/editor.c userspace/editor.h
+	$(CC) -c userspace/editor.c -o userspace/editor.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra -I. -Iinclude
+
+scooterOS.bin: boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o
+	$(CC) -T linker.ld -o scooterOS.bin -ffreestanding -O2 -nostdlib boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o -lgcc
 
 scooterOS.iso: scooterOS.bin
 	mkdir -p isodir/boot/grub

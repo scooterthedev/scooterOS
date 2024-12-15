@@ -36,6 +36,8 @@ typedef struct {
     bool scroll_lock;
 } keyboard_state_t;
 
+extern keyboard_state_t keyboard_state;
+
 void keyboard_init(void);
 void keyboard_update(void);
 char keyboard_read_char(void);
