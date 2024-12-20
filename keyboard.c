@@ -8,7 +8,8 @@
 static char keyboard_buffer[KEYBOARD_BUFFER_SIZE];
 static int buffer_start = 0;
 static int buffer_end = 0;
-static keyboard_state_t keyboard_state = {0};
+
+keyboard_state_t keyboard_state = {0};
 
 // Regular scancode to ASCII mapping
 static const char scancode_to_ascii[] = {
