@@ -5,6 +5,7 @@
 #include <string.h>
 #include "../fs/scooterfs.h"
 
+#define VGA_WIDTH 80
 extern keyboard_state_t keyboard_state;
 extern uint8_t terminal_color;
 
@@ -29,18 +30,21 @@ void editor_draw(void) {
     terminal_initialize();
     
     terminal_setcolor(vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_LIGHT_GREY));
-    for (size_t x = 0; x < 80; x++) {
+    for (size_t x = 0; x < VGA_WIDTH; x++) {
         terminal_putentryat(' ', terminal_color, x, 0);
     }
-    terminal_putentryat(' ', terminal_color, 0, 0);
-    terminal_writestring("Editor - ");
+    
+    terminal_writestring(" Editor - ");
     terminal_writestring(editor.filename[0] ? editor.filename : "Untitled");
-    terminal_writestring(editor.modified ? " [Modified] " : " ");
+    terminal_writestring(editor.modified ? " [Modified]" : "");
     terminal_writestring(" | Ctrl+S: Save | ESC: Exit");
     
     terminal_setcolor(vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK));
     for (size_t i = 0; i < EDITOR_HEIGHT && i + editor.scroll_offset < editor.num_lines; i++) {
         size_t line_num = i + editor.scroll_offset;
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            terminal_putentryat(' ', terminal_color, x, i + 1);
+        }
         for (size_t j = 0; editor.lines[line_num][j] && j < MAX_LINE_LENGTH; j++) {
             terminal_putentryat(editor.lines[line_num][j], terminal_color, j, i + 1);
         }

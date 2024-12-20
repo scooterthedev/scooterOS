@@ -104,8 +104,6 @@ void user_process_command(char* command) {
         }
     } else if (strcmp(command, "edit") == 0) {
         editor_open("untitled");
-        editor_draw();
-        
         while (editor_active) {
             char c = keyboard_read_char();
             if (c == 27) {
