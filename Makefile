@@ -2,7 +2,10 @@ CC=i686-elf-gcc
 AS=i686-elf-as
 CFLAGS=-std=gnu99 -ffreestanding -O2 -Wall -Wextra -I. -Iinclude -Icompiler/include
 
-OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o compiler/src/compiler.o
+OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o compiler/src/compiler.o compiler/src/parser.c compiler/src/codegen.c
+
+COMPILER_SRCS = compiler/src/compiler.c compiler/src/parser.c compiler/src/codegen.c
+COMPILER_OBJS = $(COMPILER_SRCS:.c=.o)
 
 all: scooterOS.iso
 
@@ -36,3 +39,6 @@ run: scooterOS.iso
 
 context_switch.o: context_switch.s
 	$(AS) context_switch.s -o context_switch.o
+
+compiler/src/%.o: compiler/src/%.c
+	$(CC) -c $< -o $@ $(CFLAGS)

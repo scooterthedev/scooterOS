@@ -206,6 +206,55 @@ void process_command(char* command) {
         
         terminal_writestring("\nSwitching to user mode...\n");
         switch_to_user_mode();
+    } else if (strncmp(command, "compile ", 8) == 0) {
+        char* filename = command + 8;
+        terminal_writestring("\nCompiling ");
+        terminal_writestring(filename);
+        terminal_writestring("...\n");
+        
+        char* source = scooterfs_read_file(filename);
+        if (!source) {
+            terminal_writestring("Error: Could not read source file\n");
+            return;
+        }
+        
+        lexer_t* lexer = lexer_create(source);
+        parser_t* parser = parser_create(lexer);
+        
+        ast_node_t* ast = parser_parse(parser);
+        if (!ast) {
+            terminal_writestring("Error: Parsing failed\n");
+            return;
+        }
+        
+        ir_instr_t* ir = generate_ir(ast);
+        if (!ir) {
+            terminal_writestring("Error: IR generation failed\n");
+            return;
+        }
+        
+        char output_file[256];
+        strcpy(output_file, filename);
+        size_t len = strlen(output_file);
+        if (len > 2 && output_file[len-2] == '.' && output_file[len-1] == 'c') {
+            output_file[len-1] = 's';
+        } else {
+            strcat(output_file, ".s");
+        }
+        
+        char assembly_output[4096];
+        generate_assembly(ir, assembly_output);
+        
+        if (scooterfs_write_file(output_file, assembly_output, strlen(assembly_output))) {
+            terminal_writestring("Compilation successful: ");
+            terminal_writestring(output_file);
+            terminal_writestring("\n");
+        } else {
+            terminal_writestring("Error: Failed to write output file\n");
+        }
+        
+        parser_destroy(parser);
+        lexer_destroy(lexer);
     } else {
         terminal_writestring("\nUnknown command. Type 'help' for available commands.\n");
     }
