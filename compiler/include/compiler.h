@@ -16,7 +16,7 @@ typedef enum {
     TOKEN_EQUALS,
     TOKEN_SEMICOLON,
     TOKEN_LPAREN,
-    TOEKN_RPAREN,
+    TOKEN_RPAREN,
     TOKEN_LBRACE,
     TOKEN_RBRACE,
     TOKEN_KEYWORD
@@ -26,14 +26,14 @@ typedef struct {
     token_type_t type;
     char* value;
     size_t line;
-    size_t collum;
+    size_t column;
 } token_t;
 
 typedef struct {
     char* source;
     size_t position;
     size_t line;
-    size_t collum;
+    size_t column;
 } lexer_t;
 
 void compiler_init(void);
