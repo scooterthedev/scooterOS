@@ -1,8 +1,8 @@
 CC=i686-elf-gcc
 AS=i686-elf-as
-CFLAGS=-std=gnu99 -ffreestanding -O2 -Wall -Wextra -I. -Iinclude
+CFLAGS=-std=gnu99 -ffreestanding -O2 -Wall -Wextra -I. -Iinclude -Icompiler/include
 
-OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o
+OBJECTS=boot.o kernel.o string.o keyboard.o ui.o userspace/userspace.o userspace/editor.o gdt.o fs/scooterfs.o memory.o scheduler.o context_switch.o compiler/src/compiler.o
 
 all: scooterOS.iso
 
