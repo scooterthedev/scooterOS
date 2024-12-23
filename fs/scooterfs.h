@@ -36,5 +36,7 @@ bool scooterfs_create_file(const char* name, bool is_directory);
 bool scooterfs_delete_file(const char* name);
 bool scooterfs_list_directory(scooterfs_dirent* entries, size_t* count);
 uint64_t scooterfs_get_time(void);
+char* scooterfs_read_file(const char* filename);
+bool scooterfs_write_file(const char* filename, const char* data, size_t length);
 
 #endif 

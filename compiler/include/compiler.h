@@ -1,9 +1,13 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "../memory.h"
+#include "../string.h"
 
+// Token types
 typedef enum {
     TOKEN_EOF,
     TOKEN_IDENTIFIER,
@@ -18,15 +22,10 @@ typedef enum {
     TOKEN_LPAREN,
     TOKEN_RPAREN,
     TOKEN_LBRACE,
-    TOKEN_RBRACE,
-    TOKEN_KEYWORD,
-    TOKEN_INT,
-    TOKEN_RETURN,
-    TOKEN_IF,
-    TOKEN_ELSE,
-    TOKEN_WHILE
+    TOKEN_RBRACE
 } token_type_t;
 
+// Token structure
 typedef struct {
     token_type_t type;
     char* value;
@@ -34,6 +33,7 @@ typedef struct {
     size_t column;
 } token_t;
 
+// Lexer structure
 typedef struct {
     char* source;
     size_t position;
@@ -41,34 +41,45 @@ typedef struct {
     size_t column;
 } lexer_t;
 
+// AST node types
 typedef enum {
-    NODE_PROGRAM,
-    NODE_FUNCTION,
-    NODE_BLOCK,
-    NODE_RETURN,
-    NODE_IF,
-    NODE_WHILE,
-    NODE_BINARY_OP,
-    NODE_IDENTIFIER,
     NODE_NUMBER,
-    NODE_ASSIGNMENT,
-    NODE_DECLARATION
+    NODE_IDENTIFIER,
+    NODE_BINARY_OP,
+    NODE_FUNCTION_CALL,
+    NODE_IF_STMT,
+    NODE_WHILE_STMT,
+    NODE_RETURN_STMT,
+    NODE_PROGRAM,
+    NODE_BINARY_EXPR
 } node_type_t;
 
+// Binary operator types
+typedef enum {
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV
+} binary_op_t;
+
+// AST node structure
 typedef struct ast_node {
     node_type_t type;
+    char* value;
+    int number_value;
+    binary_op_t op;
     struct ast_node* left;
     struct ast_node* right;
     struct ast_node* next;
-    char* value;
-    int number_value;
 } ast_node_t;
 
+// Parser structure
 typedef struct {
     lexer_t* lexer;
     token_t* current_token;
 } parser_t;
 
+// IR instruction types
 typedef enum {
     IR_LOAD,
     IR_STORE,
@@ -82,6 +93,7 @@ typedef enum {
     IR_RETURN
 } ir_op_t;
 
+// IR instruction structure
 typedef struct ir_instr {
     ir_op_t op;
     char* dest;
@@ -91,18 +103,14 @@ typedef struct ir_instr {
     struct ir_instr* next;
 } ir_instr_t;
 
-void compiler_init(void);
+// Function declarations
 lexer_t* lexer_create(char* source);
 token_t* lexer_next_token(lexer_t* lexer);
 void lexer_destroy(lexer_t* lexer);
-
 parser_t* parser_create(lexer_t* lexer);
-ast_node_t* parser_parse(parser_t* parser);
 void parser_destroy(parser_t* parser);
-
+ast_node_t* parser_parse(parser_t* parser);
 ir_instr_t* generate_ir(ast_node_t* ast);
-void print_ir(ir_instr_t* ir);
-
-void generate_assembly(ir_instr_t* ir, char* output_file);
+void generate_assembly(ir_instr_t* ir, char* output);
 
 #endif

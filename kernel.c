@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include "string.h"
 #include "io.h"
 #include "vga.h"
@@ -8,6 +9,8 @@
 #include "ui.h"
 #include "userspace/userspace.h"
 #include "gdt.h"
+#include "compiler_includes.h"
+#include "memory.h"
 
 static const size_t VGA_WIDTH = 80;
 static const size_t VGA_HEIGHT = 25;
